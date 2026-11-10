@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+title: "commitbench: code localization trained on git history, evaluated on SWE-bench Lite"
+authors:
+  - family-names: Chamakuri
+    given-names: Vijay
+version: 1.0.0
+date-released: 2026-11-10
+license: MIT
+repository-code: "https://github.com/VijayChamakuri/commitbench"
+url: "https://vijaychamakuri.github.io/commitbench/"
+keywords: [code retrieval, code localization, coding agents, SWE-bench, evaluation, information retrieval]

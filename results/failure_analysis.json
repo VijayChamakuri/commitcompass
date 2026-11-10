@@ -1,0 +1,12 @@
+{
+  "failure_analysis": {
+    "misses": 48,
+    "total": 1011,
+    "by_category": {
+      "vocabulary_mismatch": 11,
+      "vague_message": 23,
+      "test_only_gold": 9,
+      "cold_file": 5
+    }
+  }
+}
