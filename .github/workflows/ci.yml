@@ -18,7 +18,7 @@ jobs:
       - name: Types
         run: uv run mypy src
       - name: Tests (offline synthetic git repo + README-matches-results check)
-        run: uv run pytest -q --cov=commitbench --cov-report=term
+        run: uv run pytest -q --cov=commitcompass --cov-report=term
   smoke:
     runs-on: ubuntu-latest
     steps:
@@ -32,8 +32,8 @@ jobs:
           uv run python - <<'PY'
           from pathlib import Path
           import subprocess
-          from commitbench.swebench import fetch, load
-          from commitbench.swe_replay import replay
+          from commitcompass.swebench import fetch, load
+          from commitcompass.swe_replay import replay
           fetch(Path("data/swebench_lite.jsonl"))
           inst = [i for i in load(Path("data/swebench_lite.jsonl")) if i.repo == "pallets/flask"]
           subprocess.run(["git", "clone", "-q", "--filter=blob:none", "--no-checkout", "https://github.com/pallets/flask.git", "data/swe_repos/pallets_flask"], check=True)

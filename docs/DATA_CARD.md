@@ -19,7 +19,7 @@
 | Source | non-merge history of the 12 SWE-bench repositories (blob-less partial clones) |
 | Window | per repository, the last 250 qualifying commits strictly before its first SWE-bench issue |
 | Query / label | cleaned commit message → existing `.py` files it modified |
-| Filters | drop root commits, bots, commits touching more than 8 `.py` files, messages under 5 words, version bumps, typo- and format-only commits ([`mine.py`](../src/commitbench/mine.py)) |
+| Filters | drop root commits, bots, commits touching more than 8 `.py` files, messages under 5 words, version bumps, typo- and format-only commits ([`mine.py`](../src/commitcompass/mine.py)) |
 | Known noise | messages are written after the change; some modified files are incidental |
 
 ## Commit-history benchmark (secondary)

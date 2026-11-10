@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from commitbench.swe_eval import check_no_label_leak, rrf
-from commitbench.swebench import acc_at, patch_files
+from commitcompass.swe_eval import check_no_label_leak, rrf
+from commitcompass.swebench import acc_at, patch_files
 
 PATCH = """diff --git a/django/db/models/query.py b/django/db/models/query.py
 index 1..2 100644
@@ -57,7 +57,7 @@ def test_label_leak_guard():
 def test_history_parser_survives_control_characters_in_messages(tmp_path):
     import subprocess
 
-    from commitbench.swe_replay import read_history_fast
+    from commitcompass.swe_replay import read_history_fast
 
     def run(*a):
         subprocess.run(["git", "-C", str(tmp_path), *a], check=True, capture_output=True)

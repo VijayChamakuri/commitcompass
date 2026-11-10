@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>commitbench</title><meta name="description" content="Code localization on SWE-bench Lite with a reranker trained only on git history.">
+<title>CommitCompass</title><meta name="description" content="Code localization on SWE-bench Lite with a reranker trained only on git history.">
 <style>
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#e6e3dc;--card:#fff;--accent:#2457c5;--hit:#e5f4ea;--hitfg:#1f7a4d}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121212;--fg:#ecebe7;--muted:#a3a19a;--line:#2b2a27;--card:#1a1a19;--accent:#7aa2ff;--hit:#173323;--hitfg:#7fdca8}}
@@ -18,7 +18,7 @@ pre{white-space:pre-wrap;font-size:12.5px;max-height:260px;overflow:auto;backgro
 ol{padding-left:22px;font-family:ui-monospace,monospace;font-size:12.5px}li.hit{background:var(--hit);color:var(--hitfg);font-weight:600}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 </style></head><body><main>
-<nav><a href="https://github.com/VijayChamakuri/commitbench">GitHub</a></nav>
+<nav><b>CommitCompass</b> · <a href="https://github.com/VijayChamakuri/commitcompass">GitHub</a></nav>
 <h1>Which files does a coding agent actually need?</h1>
 <p class="lede">File-level localization on all 300 SWE-bench Lite issues. The reranker never sees a SWE-bench label: it is trained on
 3,000 commit-message → modified-file pairs mined from each repository's history before its first issue. Best measured: <b>Commit reranker ⊕ Jina-Code (RRF)</b>, Acc@5 <b>74.7%</b>.</p>

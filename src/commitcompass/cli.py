@@ -1,10 +1,10 @@
 """Command line entry point.
 
-commitbench swebench     SWE-bench Lite: fetch, replay 12 repos, dense pass, evaluate, charts
-commitbench history      commit-history benchmark (flask, requests, httpx): mine, eval, report
-commitbench site         build site/ (leaderboard + per-instance explorer)
-commitbench readme       render README.md from results (CI checks it is up to date)
-commitbench reproduce    everything above, in order
+commitcompass swebench     SWE-bench Lite: fetch, replay 12 repos, dense pass, evaluate, charts
+commitcompass history      commit-history benchmark (flask, requests, httpx): mine, eval, report
+commitcompass site         build site/ (leaderboard + per-instance explorer)
+commitcompass readme       render README.md from results (CI checks it is up to date)
+commitcompass reproduce    everything above, in order
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ def run_swebench(results: Path, dense: bool = True) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(
-        prog="commitbench", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="commitcompass", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument(
         "command", choices=["swebench", "history", "site", "readme", "reproduce", "mine", "eval", "report", "all"]
@@ -75,4 +75,4 @@ def main(argv: list[str] | None = None) -> None:
         from .readme import render
 
         render(write=True)
-    print(f"[commitbench] {cmd} finished in {time.perf_counter() - t0:.1f}s")
+    print(f"[commitcompass] {cmd} finished in {time.perf_counter() - t0:.1f}s")

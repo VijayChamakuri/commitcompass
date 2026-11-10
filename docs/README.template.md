@@ -1,10 +1,12 @@
-<!-- Generated from docs/README.template.md by `commitbench readme`. Edit the template, not this file. -->
-# commitbench
+<!-- Generated from docs/README.template.md by `commitcompass readme`. Edit the template, not this file. -->
+# CommitCompass
+
+**Points coding agents to the right file, learned from git history.**
 
 **Which files does a coding agent actually need?** A code-localization retriever trained *only* on free supervision from git history (commit message → files changed), evaluated on all {{n_test}} SWE-bench Lite issues against published baselines. It runs on a laptop CPU with no API calls.
 
-[![CI](https://github.com/VijayChamakuri/commitbench/actions/workflows/ci.yml/badge.svg)](https://github.com/VijayChamakuri/commitbench/actions/workflows/ci.yml)
-[![Leaderboard + explorer](https://img.shields.io/badge/results-live%20explorer-2457c5)](https://vijaychamakuri.github.io/commitbench/)
+[![CI](https://github.com/VijayChamakuri/commitcompass/actions/workflows/ci.yml/badge.svg)](https://github.com/VijayChamakuri/commitcompass/actions/workflows/ci.yml)
+[![Leaderboard + explorer](https://img.shields.io/badge/results-live%20explorer-2457c5)](https://vijaychamakuri.github.io/commitcompass/)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)
 [![Ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
 ![mypy](https://img.shields.io/badge/types-mypy-1f5082)
@@ -49,7 +51,7 @@ File-level localization on all {{n_test}} SWE-bench Lite issues (Acc@k = gold fi
 - **Where the gain comes from.** Against a hand-tuned hybrid over the same 18 features, the differences are small and not statistically significant: Acc@1 {{d_rr_hyb_acc1}}, Acc@5 {{d_rr_hyb_acc5}}. Most of the lift over BM25 comes from the features themselves (path, symbol, chunk and history signals). Learning their weights from commit history matches careful hand-tuning with no manual effort, and keeps working on repositories it has never seen.
 - **Indexing scales with change, not repo size.** {{events}} snapshots replayed through a Merkle-diff incremental index re-read {{reindexed}} files per update on average. Every spot-check matched a full rebuild ({{verified}}).
 
-> Every number above is rendered from [`results/`](results) by `commitbench readme`; CI fails if the README and results disagree. Reported rows are copied from {{published_source}} and marked as such.
+> Every number above is rendered from [`results/`](results) by `commitcompass readme`; CI fails if the README and results disagree. Reported rows are copied from {{published_source}} and marked as such.
 
 ## Why this matters
 
@@ -60,9 +62,9 @@ File-level localization on all {{n_test}} SWE-bench Lite issues (Acc@k = gold fi
 ## Quickstart
 
 ```bash
-git clone https://github.com/VijayChamakuri/commitbench && cd commitbench
+git clone https://github.com/VijayChamakuri/commitcompass && cd commitcompass
 uv sync
-uv run commitbench swebench --no-dense   # 300 issues, keyword + learned methods, ~{{nodense_min}} min on a laptop CPU
+uv run commitcompass swebench --no-dense   # 300 issues, keyword + learned methods, ~{{nodense_min}} min on a laptop CPU
 ```
 
 ### Reproduce everything
@@ -109,12 +111,12 @@ flowchart LR
 
 | Module | Responsibility |
 |---|---|
-| [`swebench.py`](src/commitbench/swebench.py) | fetch + checksum SWE-bench Lite, parse gold files from patches, Acc@k |
-| [`swe_replay.py`](src/commitbench/swe_replay.py) | per-repo time-ordered replay, sparse checkout, history priors, index verification |
-| [`index.py`](src/commitbench/index.py) · [`merkle.py`](src/commitbench/merkle.py) | mutable BM25 (file + chunk), Merkle diff, incremental update |
-| [`features.py`](src/commitbench/features.py) | 18 named features and the non-learned retrievers |
-| [`dense.py`](src/commitbench/dense.py) | local code embeddings over a candidate pool, cached per blob |
-| [`swe_eval.py`](src/commitbench/swe_eval.py) | reranker training (pooled, leave-one-repo-out), label-leak guard, fusion, CIs, miss analysis |
+| [`swebench.py`](src/commitcompass/swebench.py) | fetch + checksum SWE-bench Lite, parse gold files from patches, Acc@k |
+| [`swe_replay.py`](src/commitcompass/swe_replay.py) | per-repo time-ordered replay, sparse checkout, history priors, index verification |
+| [`index.py`](src/commitcompass/index.py) · [`merkle.py`](src/commitcompass/merkle.py) | mutable BM25 (file + chunk), Merkle diff, incremental update |
+| [`features.py`](src/commitcompass/features.py) | 18 named features and the non-learned retrievers |
+| [`dense.py`](src/commitcompass/dense.py) | local code embeddings over a candidate pool, cached per blob |
+| [`swe_eval.py`](src/commitcompass/swe_eval.py) | reranker training (pooled, leave-one-repo-out), label-leak guard, fusion, CIs, miss analysis |
 
 ## Results in depth
 
@@ -142,7 +144,7 @@ The local Jina-Code-v2 model reranks a candidate pool: the union of the top 30 f
 
 {{miss_table}}
 
-Browse all {{n_test}} issues, with our top 10 files and the gold file highlighted, in the [live explorer](https://vijaychamakuri.github.io/commitbench/).
+Browse all {{n_test}} issues, with our top 10 files and the gold file highlighted, in the [live explorer](https://vijaychamakuri.github.io/commitcompass/).
 
 ### Reproducing the baselines
 
@@ -181,7 +183,7 @@ Our BM25 reaches Acc@1 {{bm25_acc1}}% and Acc@5 {{bm25_acc5}}%, against {{pub_bm
 ## Project structure
 
 ```
-src/commitbench/   swebench, swe_replay, swe_eval, dense, index, merkle, features, history, mine, site, readme
+src/commitcompass/   swebench, swe_replay, swe_eval, dense, index, merkle, features, history, mine, site, readme
 results/           every number in this README (JSON, per-instance JSONL, charts)
 docs/              METHODOLOGY · DATA_CARD · DESIGN_DECISIONS · HISTORY_BENCHMARK · README template
 site/              GitHub Pages: leaderboard + per-instance explorer

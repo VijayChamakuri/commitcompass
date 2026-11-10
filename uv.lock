@@ -253,7 +253,7 @@ wheels = [
 ]
 
 [[package]]
-name = "commitbench"
+name = "commitcompass"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [

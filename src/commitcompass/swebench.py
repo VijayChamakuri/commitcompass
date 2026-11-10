@@ -90,7 +90,9 @@ def fetch(out: Path) -> dict:
         for offset in range(0, N_INSTANCES, 100):
             for attempt in range(4):
                 try:
-                    req = urllib.request.Request(ROWS_URL.format(offset=offset), headers={"User-Agent": "commitbench"})
+                    req = urllib.request.Request(
+                        ROWS_URL.format(offset=offset), headers={"User-Agent": "commitcompass"}
+                    )
                     with urllib.request.urlopen(req, timeout=120) as r:
                         rows += [x["row"] for x in json.loads(r.read())["rows"]]
                     break

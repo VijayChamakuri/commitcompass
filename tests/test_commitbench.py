@@ -6,16 +6,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from commitbench import merkle
-from commitbench import metrics as M
-from commitbench.chunk import chunk_source, symbols
-from commitbench.evaluate import replay_repo, temporal_split
-from commitbench.features import F
-from commitbench.gitutil import BlobReader, ls_tree_py, read_history
-from commitbench.history import History
-from commitbench.index import RepoIndex
-from commitbench.mine import classify, mine_repo
-from commitbench.textproc import mask_query, split_identifier, tokenize
+from commitcompass import merkle
+from commitcompass import metrics as M
+from commitcompass.chunk import chunk_source, symbols
+from commitcompass.evaluate import replay_repo, temporal_split
+from commitcompass.features import F
+from commitcompass.gitutil import BlobReader, ls_tree_py, read_history
+from commitcompass.history import History
+from commitcompass.index import RepoIndex
+from commitcompass.mine import classify, mine_repo
+from commitcompass.textproc import mask_query, split_identifier, tokenize
 
 CUTOFF = "2030-01-01"
 

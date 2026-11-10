@@ -1,6 +1,6 @@
 # Methodology
 
-How every number in the README is produced. The numbers themselves live in [`results/`](../results) and are rendered into the README by `commitbench readme`.
+How every number in the README is produced. The numbers themselves live in [`results/`](../results) and are rendered into the README by `commitcompass readme`.
 
 ## 1. Task
 
