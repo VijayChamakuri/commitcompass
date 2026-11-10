@@ -1,4 +1,5 @@
 import pytest
+
 from commitbench.readme import ROOT, render
 
 RESULTS = ROOT / "results"
