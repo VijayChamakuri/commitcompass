@@ -170,7 +170,7 @@ rows use paid APIs and nothing measured here does. My BM25 lands close to the pu
 <div class="tbl wide"><p class=cap><b>Table 1.</b> File-level localization on SWE-bench Lite, {{n_test}} issues.</p>{{leaderboard}}</div>
 <figure class=narrow><img src="swebench_leaderboard.png" alt="Horizontal bar chart of Acc@5 for measured and reported methods. Measured methods sit between BM25 and the LLM agents.">
 <figcaption><b>Figure 1.</b> Acc@5 for every method. Blue bars were measured here; grey and orange bars are reported numbers.</figcaption></figure>
-<figure class=wide><img src="swebench_acc_at_k.png" alt="Accuracy as the number of suggested files grows, for each measured method.">
+<figure class=narrow><img src="swebench_acc_at_k.png" alt="Accuracy as the number of suggested files grows, for each measured method.">
 <figcaption><b>Figure 2.</b> Accuracy as the number of suggested files grows.</figcaption></figure>
 <div class="tbl wide"><p class=cap><b>Table 2.</b> Acc@5 by repository.</p>{{per_repo_table}}</div>
 <div class="tbl wide"><p class=cap><b>Table 3.</b> Why the best method missed at k=5, sorted into rough categories.</p>{{miss_table}}</div>

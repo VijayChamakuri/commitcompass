@@ -7,12 +7,10 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
-import matplotlib
+import matplotlib.pyplot as plt
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-
-from .textproc import tokenize  # noqa: E402
+from . import chartstyle as cs
+from .textproc import tokenize
 
 LABELS = {
     "bm25_file": "BM25 (file)",
@@ -87,12 +85,13 @@ def deltas_table(vs: dict) -> str:
 
 
 def charts(summary: dict, results_dir: Path) -> list[str]:
+    cs.apply()
     files = []
     # 1) Recall@10 per method, as-is vs masked, with CIs.
     fig, ax = plt.subplots(figsize=(9, 4.2))
     methods = list(LABELS)
     width = 0.38
-    for j, (v, color) in enumerate((("as_is", "#4C6EF5"), ("masked", "#F59F00"))):
+    for j, (v, color) in enumerate((("as_is", cs.BLUE), ("masked", cs.ORANGE))):
         p = summary["variants"][v]["pooled"]
         means = [p[m]["recall@10"]["mean"] for m in methods]
         err = [
@@ -103,28 +102,28 @@ def charts(summary: dict, results_dir: Path) -> list[str]:
         ax.bar(
             xs,
             means,
-            width,
+            width - 0.04,
             yerr=err,
-            capsize=3,
+            error_kw={"elinewidth": 0.9, "ecolor": cs.INK2, "capsize": 0},
             color=color,
-            label="message as-is" if v == "as_is" else "file names masked",
+            label="Commit message as written" if v == "as_is" else "File names masked out of the message",
         )
     ax.set_xticks(range(len(methods)))
-    ax.set_xticklabels([LABELS[m] for m in methods], rotation=25, ha="right", fontsize=8)
+    ax.set_xticklabels([LABELS[m] for m in methods], rotation=25, ha="right")
+    ax.tick_params(axis="x", length=0)
     ax.set_ylabel("Recall@10 (test split)")
     ax.set_ylim(0, 1)
-    ax.legend(frameon=False)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.set_title("Which files did the commit actually edit? Recall@10 with 95% CIs")
+    ax.legend(loc="upper left", ncol=2, handlelength=1)
+    ax.set_title("Which files did the commit edit? Recall@10 with 95% CIs")
     fig.tight_layout()
-    fig.savefig(results_dir / "recall_at_10.png", dpi=150)
+    fig.savefig(results_dir / "recall_at_10.png")
     plt.close(fig)
     files.append("recall_at_10.png")
 
     # 2) Recall vs context token budget.
-    fig, ax = plt.subplots(figsize=(6.5, 4))
+    fig, ax = plt.subplots(figsize=(6.8, 4))
     budgets = [2, 4, 8, 16]
-    for m, color in zip(MAIN, ("#868E96", "#4C6EF5", "#2B8A3E"), strict=True):
+    for m, color in zip(MAIN, (cs.NEUTRAL, cs.ORANGE, cs.BLUE), strict=True):
         for v, ls in (("as_is", "-"), ("masked", "--")):
             p = summary["variants"][v]["pooled"][m]
             ax.plot(
@@ -133,19 +132,19 @@ def charts(summary: dict, results_dir: Path) -> list[str]:
                 ls,
                 marker="o",
                 color=color,
-                label=f"{LABELS[m]} ({'as-is' if v == 'as_is' else 'masked'})",
+                label=f"{LABELS[m]} ({'as written' if v == 'as_is' else 'masked'})",
             )
     ax.set_xscale("log", base=2)
     ax.set_xticks(budgets)
     ax.set_xticklabels([f"{b}k" for b in budgets])
+    ax.minorticks_off()
     ax.set_xlabel("Context budget (approx. tokens)")
-    ax.set_ylabel("Gold files with ≥1 chunk in context")
+    ax.set_ylabel("Changed files with a chunk in context")
     ax.set_ylim(0, 1)
-    ax.legend(frameon=False, fontsize=7)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.set_title("Recall under a fixed context budget")
+    ax.legend(fontsize=7.5, loc="lower right")
+    ax.set_title("Recall under a fixed context budget (dashed: file names masked)")
     fig.tight_layout()
-    fig.savefig(results_dir / "budget_curve.png", dpi=150)
+    fig.savefig(results_dir / "budget_curve.png")
     plt.close(fig)
     files.append("budget_curve.png")
     return files
