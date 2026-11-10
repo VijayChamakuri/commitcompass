@@ -129,9 +129,11 @@ def values() -> dict[str, str]:
         "django_files": f"{django.get('mean_snapshot_files', 0):,.0f}",
         "feat_ms": f"{1000 * sum(x['features_s'] for x in t.values()) / max(1, sum(x['records'] for x in t.values())):.0f}",
         "replay_min": f"{sum(x['repo_seconds'] for x in t.values()) / 60:.0f}",
-        "dense_files": f"{sum(x.get('dense_files_embedded', 0) for x in t.values()):,}",
+        "dense_files": f"{max(x.get('dense_files_embedded', 0) for x in t.values()):,}",  # running total
         "dense_min": f"{sum(x.get('dense_seconds', 0) for x in t.values()) / 60:.0f}",
         "first_build_max": f"{max(first):.1f}",
+        "eval_min": f"{res['seconds'] / 60:.0f}",
+        "nodense_min": f"{(sum(x['repo_seconds'] for x in t.values()) + res['seconds']) / 60:.0f}",
     }
     hv = hist["variants"]
     h_rows = [

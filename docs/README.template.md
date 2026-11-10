@@ -12,6 +12,32 @@
 
 ![SWE-bench Lite leaderboard](results/swebench_leaderboard.png)
 
+## In plain English
+
+When an AI coding assistant gets a bug report, its first job is to **find the file it needs to change**. If it opens the wrong file, nothing it writes afterwards can fix the bug.
+
+This project builds a tool for that step and measures it honestly:
+
+- **What it learns from:** a project's own git history. Every past commit already pairs a description ("fix crash when saving empty form") with the files that were changed, so no one has to label training data by hand.
+- **How it's tested:** on 300 real GitHub bug reports from **SWE-bench Lite**, the standard benchmark for coding agents, using the same scoring as published research so the numbers can sit side by side.
+- **What it found:** it ranks the right file first in **{{rr_acc1}}%** of issues, against {{bm25_acc1}}% for classic keyword search. Combined with a small code-search model, the right file is in its top 5 picks **{{best_acc5}}%** of the time. All of this runs on a laptop with no paid AI.
+- **Where it stands:** the best published systems, which call large paid AI models, still do better (up to {{pub_locagent_acc5}}% in the top 5). The comparison is shown below rather than hidden.
+
+## Terms used below
+
+| Term | Meaning |
+|---|---|
+| **Acc@k** | Share of issues where the file that actually needed fixing is among the tool's top *k* suggestions. Acc@1 means it was the very first suggestion. |
+| **BM25** | Classic keyword search, the standard baseline: rank files by how many of the issue's words they contain, weighted by how rare those words are. |
+| **Reranker** | A small model that re-orders candidate files using signals like keyword match, file paths, function names and how recently a file changed. |
+| **Commit-supervised** | The reranker learns only from past commits (message → files changed), never from the benchmark's answers. |
+| **Leave-one-repo-out** | The model scoring a project never saw that project's history, which tests whether it works on a brand-new codebase. |
+| **Dense / embeddings** | A neural model that turns code and text into vectors so it can match meaning, not just shared words. Here it's a free model running locally. |
+| **RRF** | Reciprocal rank fusion: a simple way to combine two rankings by rewarding files both rank highly. |
+| **95% CI** | The range the true score likely falls in, given only 300 test issues. Two results whose ranges overlap a lot may not really differ. |
+| **pts** | Percentage points: 37% → 47% is +10 pts. |
+| **Incremental index** | When the code changes, only the changed files are re-read, instead of rebuilding the whole search index. |
+
 ## Key results
 
 File-level localization on all {{n_test}} SWE-bench Lite issues (Acc@k = gold file in the top k, the same definition as the reported rows). All measured on a laptop CPU with no API calls:
@@ -36,7 +62,7 @@ File-level localization on all {{n_test}} SWE-bench Lite issues (Acc@k = gold fi
 ```bash
 git clone https://github.com/VijayChamakuri/commitbench && cd commitbench
 uv sync
-uv run commitbench swebench --no-dense   # 300 issues, sparse + learned methods, ~45 min on a laptop CPU
+uv run commitbench swebench --no-dense   # 300 issues, keyword + learned methods, ~{{nodense_min}} min on a laptop CPU
 ```
 
 ### Reproduce everything
@@ -49,7 +75,7 @@ make reproduce   # SWE-bench Lite (incl. local dense pass) + commit-history benc
 |---|---|---|
 | Replay | {{events}} snapshots over 12 blob-less partial clones (sparse `*.py` checkout) | ~{{replay_min}} min |
 | Dense | {{dense_files}} file versions embedded with `jina-embeddings-v2-base-code` (fastembed, ONNX) | ~{{dense_min}} min |
-| Evaluate | rerankers (pooled + 12 leave-one-repo-out), bootstrap CIs, charts | ~2 min |
+| Evaluate | rerankers (pooled + 12 leave-one-repo-out), bootstrap CIs, charts | ~{{eval_min}} min |
 
 There are no API keys or paid services. Data: SWE-bench Lite via the Hugging Face datasets server; repositories from GitHub.
 
@@ -66,19 +92,19 @@ There are no API keys or paid services. Data: SWE-bench Lite via the Hugging Fac
 ```mermaid
 flowchart LR
   subgraph Data
-    H[(git history<br/>12 repos, partial clones)] --> T[training queries<br/>commit message → modified files<br/>strictly before first issue]
-    S[(SWE-bench Lite<br/>300 issues)] --> Q[test queries<br/>issue text → gold file]
+    H[("git history: 12 repos, partial clones")] --> T["training queries: commit message → files changed, strictly before the first issue"]
+    S[("SWE-bench Lite: 300 issues")] --> Q["test queries: issue text → file that was fixed"]
   end
   subgraph Index["Incremental index per repo"]
-    T & Q --> R[replay in time order]
-    R --> MK[Merkle diff over git blob ids<br/>re-read only changed files]
-    MK --> IX[BM25 file + chunk · symbols · paths]
-    R --> HP[history priors<br/>churn · recency · co-change]
+    T & Q --> R["replay in time order"]
+    R --> MK["Merkle diff: re-read only changed files"]
+    MK --> IX["keyword index: files, functions, paths"]
+    R --> HP["history signals: churn, recency, co-change"]
   end
-  IX & HP --> F[18 features per candidate file]
-  F --> GBT[commit-supervised reranker<br/>gradient-boosted trees]
-  F --> P[top-30 BM25 ∪ top-30 hybrid pool] --> D[Jina-Code-v2 skeleton embeddings<br/>local ONNX]
-  GBT & D --> RRF[reciprocal rank fusion] --> E[Acc@k · MRR · CIs · paired tests]
+  IX & HP --> F["18 signals per candidate file"]
+  F --> GBT["commit-supervised reranker (gradient-boosted trees)"]
+  F --> P["candidate pool: top 30 keyword + top 30 hybrid"] --> D["local code embeddings (Jina-Code-v2)"]
+  GBT & D --> RRF["rank fusion"] --> E["scores: Acc at k, MRR, confidence intervals"]
 ```
 
 | Module | Responsibility |
