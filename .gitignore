@@ -3,10 +3,10 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
-data/repos/
+/data/repos/
 data/queries.jsonl
 data/mine_stats.json
 results/per_query.jsonl
-data/
+/data/
 .coverage
 site/data/*.tmp
