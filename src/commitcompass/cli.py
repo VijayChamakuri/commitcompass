@@ -3,7 +3,7 @@
 commitcompass swebench     SWE-bench Lite: fetch, replay 12 repos, dense pass, evaluate, charts
 commitcompass history      commit-history benchmark (flask, requests, httpx): mine, eval, report
 commitcompass site         build site/ (leaderboard + per-instance explorer)
-commitcompass readme       render README.md from results (CI checks it is up to date)
+commitcompass readme       render README.md and docs/RESULTS.md from results (CI checks both)
 commitcompass reproduce    everything above, in order
 """
 

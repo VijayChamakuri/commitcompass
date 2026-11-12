@@ -17,7 +17,7 @@
 **Consequence:** Indexing cost scales with change, not repository size, which is the same reason production code-search systems sync this way.
 
 ### ADR-5: Dense retrieval is local and fused late
-**Decision:** fastembed ONNX on CPU, with no API. Dense reranks a 60-file candidate pool using file skeletons, because full-corpus chunk embedding is days of laptop CPU. Dense scores are fused with reciprocal rank fusion at query time instead of being fed into the reranker, so training needs no embeddings of historical snapshots.
+**Decision:** fastembed on CPU. Dense reranks the union of the top 30 files by BM25 and the top 30 by the hand-tuned hybrid (at most 60 files), using file skeletons. Full-corpus chunk embedding was not run. Dense scores are fused with reciprocal rank fusion at query time instead of being fed into the reranker, so training needs no embeddings of historical snapshots.
 **Consequence:** The reranker stays cheap to train. Fusion is a fixed, parameter-light combination.
 
 ### ADR-6: Simple, inspectable models

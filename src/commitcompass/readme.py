@@ -1,6 +1,7 @@
-"""Render README.md from docs/README.template.md and results/*.json ({{name}} placeholders).
+"""Render README.md and docs/RESULTS.md from templates and results/*.json.
 
-tests/test_readme.py fails if README.md differs from a fresh render.
+{{name}} placeholders are filled from the result files. tests/test_readme.py fails
+if either generated file differs from a fresh render.
 """
 
 from __future__ import annotations
@@ -10,11 +11,15 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .dense import POOL
+from .features import FEATURES
 from .swe_charts import LABELS
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "docs" / "README.template.md"
 README = ROOT / "README.md"
+RESULTS_TEMPLATE = ROOT / "docs" / "RESULTS.template.md"
+RESULTS_DOC = ROOT / "docs" / "RESULTS.md"
 TABLE_METHODS = [
     "bm25_file",
     "bm25_chunk",
@@ -46,6 +51,9 @@ def values() -> dict[str, str]:
     v: dict[str, Any] = {
         "n_test": str(res["n_test"]),
         "n_train": f"{res['n_train_commit_queries']:,}",
+        "n_features": str(len(FEATURES)),
+        "n_repos": str(len(res["train_queries_per_repo"])),
+        "pool": str(POOL),
         "published_source": res["published_source"],
     }
     rows = ["| Method | Source | Acc@1 | Acc@3 | Acc@5 | Acc@10 | MRR |", "|---|---|---:|---:|---:|---:|---:|"]
@@ -69,6 +77,8 @@ def values() -> dict[str, str]:
         "best_acc5_ci": f"{p1(agg[best]['acc@5']['ci95'][0])}–{p1(agg[best]['acc@5']['ci95'][1])}",
         "bm25_acc1": p1(agg["bm25_file"]["acc@1"]["mean"]),
         "bm25_acc5": p1(agg["bm25_file"]["acc@5"]["mean"]),
+        "hyb_acc1": p1(agg["hybrid_hand_tuned"]["acc@1"]["mean"]),
+        "hyb_acc5": p1(agg["hybrid_hand_tuned"]["acc@5"]["mean"]),
         "pub_bm25_acc5": f"{pub['BM25']['acc@5']:.1f}",
         "pub_bm25_acc1": f"{pub['BM25']['acc@1']:.1f}",
         "rr_acc1": p1(agg["commit_reranker"]["acc@1"]["mean"]),
@@ -151,16 +161,30 @@ def values() -> dict[str, str]:
             f"| {lab} | {a['recall@10']['mean']:.3f} | {a['mrr']['mean']:.3f} | {b['recall@10']['mean']:.3f} | {b['mrr']['mean']:.3f} |"
         )
     v["history_table"], v["history_n"] = "\n".join(h_rows), f"{hist['n_test']:,}"
+    gbt = hv["as_is"]["pooled"]["learned_gbt"]["recall@10"]["mean"]
+    bm = hv["as_is"]["pooled"]["bm25_file"]["recall@10"]["mean"]
+    v["hist_gbt_r10"] = f"{gbt:.3f}"
+    v["hist_bm25_r10"] = f"{bm:.3f}"
     return {k: str(x) for k, x in v.items()}
+
+
+def _fill(template: Path, vals: dict[str, str]) -> str:
+    text = template.read_text()
+    missing = sorted(set(re.findall(r"\{\{(\w+)\}\}", text)) - set(vals))
+    if missing:
+        raise KeyError(f"{template.name} placeholders without values: {missing}")
+    return re.sub(r"\{\{(\w+)\}\}", lambda m: vals[m.group(1)], text)
 
 
 def render(write: bool = False) -> str:
     vals = values()
-    text = TEMPLATE.read_text()
-    missing = sorted(set(re.findall(r"\{\{(\w+)\}\}", text)) - set(vals))
-    if missing:
-        raise KeyError(f"README template placeholders without values: {missing}")
-    out = re.sub(r"\{\{(\w+)\}\}", lambda m: vals[m.group(1)], text)
+    readme = _fill(TEMPLATE, vals)
+    results = _fill(RESULTS_TEMPLATE, vals)
     if write:
-        README.write_text(out)
-    return out
+        README.write_text(readme)
+        RESULTS_DOC.write_text(results)
+    return readme
+
+
+def render_results() -> str:
+    return _fill(RESULTS_TEMPLATE, values())

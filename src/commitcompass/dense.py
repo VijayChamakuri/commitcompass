@@ -1,11 +1,10 @@
-"""Dense reranking with a free, local code-embedding model (no API calls).
+"""Dense reranking with a local code-embedding model (no paid model service).
 
-Model: `jinaai/jina-embeddings-v2-base-code` via fastembed (ONNX, CPU), the model family
-reported as "Jina-Code-v2" in published SWE-bench Lite localization tables.
+Model: `jinaai/jina-embeddings-v2-base-code` via fastembed, on CPU. This is the model
+family reported as "Jina-Code-v2" in published SWE-bench Lite localization tables.
 
-Compute budget: full-corpus chunk embedding of the 45.7k unique file versions behind the 300
-SWE-bench Lite base commits is ~300k chunks, which is days on a laptop CPU. So dense is used
-the way production systems use it, as a reranker over a candidate pool:
+Full-corpus chunk embedding of the file versions behind the 300 SWE-bench Lite base
+commits was not run. Dense reranks a candidate pool instead:
 
   pool   top-30 files by BM25 (file) and top-30 by the hand-tuned hybrid (both non-learned)
   file   one vector per file version: its path plus a skeleton of class/def signatures and

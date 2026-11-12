@@ -45,7 +45,7 @@ Commit message → modified `.py` files for flask, requests and httpx (non-merge
 - Model: `jinaai/jina-embeddings-v2-base-code` via fastembed (ONNX, CPU).
 - **Pool:** dense reranks a candidate pool, the union of the top 30 files by BM25 (file) and the top 30 by the hand-tuned hybrid. Both are non-learned. The pool's recall (share of issues whose gold file is in it) is reported.
 - **File representation:** each pooled file is embedded once as a *skeleton*: its path, class/def signatures and the first docstring line under each, truncated to 256 tokens. The score is cosine similarity with the first 2,000 characters of the issue.
-- **Why not full-corpus chunk retrieval:** that means embedding ~300k chunks from 45.7k file versions, and the model runs at about 1–3 files/s on this laptop CPU. That would take days, while the pool needed 10,077 file embeddings (about 2.6 hours).
+- **Why not full-corpus chunk retrieval:** that run was not done. What was measured is the pool. The file count and the seconds are the `dense_files_embedded` and `dense_seconds` fields in `results/swebench_lite.json`, and they are rendered into [RESULTS.md](RESULTS.md).
 - Vectors are cached per git blob, so a file version is embedded once.
 
 **Commit-supervised reranker** (the contribution):
@@ -62,7 +62,7 @@ The reported rows are copied, not re-run. Known differences:
 
 - Their retrieval baselines may chunk, truncate and preprocess issues differently. Our BM25 and Jina-Code rows are our own implementations of the same model families, so gaps against their rows are shown, not hidden.
 - Their LLM rows use paid APIs. Nothing here calls an API.
-- Our numbers come from CPU-only runs, with hardware and timings recorded in `results/swebench_lite.json`.
+- Scoring runs on CPU. Wall times are in `results/swebench_lite.json`. That file does not name the machine.
 
 ## 6. What is not claimed
 

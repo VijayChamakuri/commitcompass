@@ -1,195 +1,169 @@
 <!-- Generated from docs/README.template.md by `commitcompass readme`. Edit the template, not this file. -->
 # CommitCompass
 
-**Points coding agents to the right file, learned from git history.**
+[![CI](https://github.com/VijayChamakuri/commitcompass/actions/workflows/ci.yml/badge.svg)](https://github.com/VijayChamakuri/commitcompass/actions/workflows/ci.yml) [![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Explorer](https://img.shields.io/badge/explorer-GitHub%20Pages-2457c5)](https://vijaychamakuri.github.io/commitcompass/)
 
-**Which files does a coding agent actually need?** A code-localization retriever trained *only* on free supervision from git history (commit message → files changed), evaluated on all {{n_test}} SWE-bench Lite issues against published baselines. It runs on a laptop CPU with no API calls.
+A coding agent that opens the wrong file cannot fix the bug. I built CommitCompass to rank the file a bug report should change, training only on git history: the commit message, and the files that commit edited. On SWE-bench Lite, a set of {{n_test}} real GitHub issues, that ranker puts the edited file first on {{rr_acc1}}% of issues, against {{bm25_acc1}}% for keyword search (BM25, Best Matching 25).
 
-[![CI](https://github.com/VijayChamakuri/commitcompass/actions/workflows/ci.yml/badge.svg)](https://github.com/VijayChamakuri/commitcompass/actions/workflows/ci.yml)
-[![Leaderboard + explorer](https://img.shields.io/badge/results-live%20explorer-2457c5)](https://vijaychamakuri.github.io/commitcompass/)
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)
-[![Ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
-![mypy](https://img.shields.io/badge/types-mypy-1f5082)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-
-![SWE-bench Lite leaderboard](results/swebench_leaderboard.png)
-
-## In plain English
-
-When an AI coding assistant gets a bug report, its first job is to **find the file it needs to change**. If it opens the wrong file, nothing it writes afterwards can fix the bug.
-
-This project builds a tool for that step and measures it honestly:
-
-- **What it learns from:** a project's own git history. Every past commit already pairs a description ("fix crash when saving empty form") with the files that were changed, so no one has to label training data by hand.
-- **How it's tested:** on 300 real GitHub bug reports from **SWE-bench Lite**, the standard benchmark for coding agents, using the same scoring as published research so the numbers can sit side by side.
-- **What it found:** it ranks the right file first in **{{rr_acc1}}%** of issues, against {{bm25_acc1}}% for classic keyword search. Combined with a small code-search model, the right file is in its top 5 picks **{{best_acc5}}%** of the time. All of this runs on a laptop with no paid AI.
-- **Where it stands:** the best published systems, which call large paid AI models, still do better (up to {{pub_locagent_acc5}}% in the top 5). The comparison is shown below rather than hidden.
-
-## Terms used below
-
-| Term | Meaning |
-|---|---|
-| **Acc@k** | Share of issues where the file that actually needed fixing is among the tool's top *k* suggestions. Acc@1 means it was the very first suggestion. |
-| **BM25** | Classic keyword search, the standard baseline: rank files by how many of the issue's words they contain, weighted by how rare those words are. |
-| **Reranker** | A small model that re-orders candidate files using signals like keyword match, file paths, function names and how recently a file changed. |
-| **Commit-supervised** | The reranker learns only from past commits (message → files changed), never from the benchmark's answers. |
-| **Leave-one-repo-out** | The model scoring a project never saw that project's history, which tests whether it works on a brand-new codebase. |
-| **Dense / embeddings** | A neural model that turns code and text into vectors so it can match meaning, not just shared words. Here it's a free model running locally. |
-| **RRF** | Reciprocal rank fusion: a simple way to combine two rankings by rewarding files both rank highly. |
-| **95% CI** | The range the true score likely falls in, given only 300 test issues. Two results whose ranges overlap a lot may not really differ. |
-| **pts** | Percentage points: 37% → 47% is +10 pts. |
-| **Incremental index** | When the code changes, only the changed files are re-read, instead of rebuilding the whole search index. |
-
-## Key results
-
-File-level localization on all {{n_test}} SWE-bench Lite issues (Acc@k = gold file in the top k, the same definition as the reported rows). All measured on a laptop CPU with no API calls:
-
-- **Git history alone is useful supervision.** The commit-supervised reranker, trained on {{n_train}} commit messages from before each repository's first issue and never on a SWE-bench label, reaches **Acc@1 {{rr_acc1}}%** and Acc@5 {{rr_acc5}}%. That is **{{d_rr_bm25_acc1}} at Acc@1** over BM25, and {{d_rr_bm25_acc5}} at Acc@5.
-- **It transfers to unseen codebases.** With each repository's own history held out (leave-one-repo-out), it still reaches Acc@1 {{loro_acc1}}% and Acc@5 {{loro_acc5}}%.
-- **The baseline is reproduced, not just cited.** Our BM25 gets Acc@1 {{bm25_acc1}}% against {{pub_bm25_acc1}}% reported, and Acc@5 {{bm25_acc5}}% against {{pub_bm25_acc5}}%.
-- **Fused with a local code-embedding reranker**, the best measured method ({{best_label}}) reaches **Acc@5 {{best_acc5}}%** (95% CI {{best_acc5_ci}}). For context, reported full-corpus dense retrievers reach {{pub_jina_acc5}}–{{pub_cre_acc5}}%, and LLM pipelines and agents on paid APIs reach {{pub_agentless_acc5}}–{{pub_locagent_acc5}}%.
-- **Where the gain comes from.** Against a hand-tuned hybrid over the same 18 features, the differences are small and not statistically significant: Acc@1 {{d_rr_hyb_acc1}}, Acc@5 {{d_rr_hyb_acc5}}. Most of the lift over BM25 comes from the features themselves (path, symbol, chunk and history signals). Learning their weights from commit history matches careful hand-tuning with no manual effort, and keeps working on repositories it has never seen.
-- **Indexing scales with change, not repo size.** {{events}} snapshots replayed through a Merkle-diff incremental index re-read {{reindexed}} files per update on average. Every spot-check matched a full rebuild ({{verified}}).
-
-> Every number above is rendered from [`results/`](results) by `commitcompass readme`; CI fails if the README and results disagree. Reported rows are copied from {{published_source}} and marked as such.
-
-## Why this matters
-
-- **Context is the ceiling on agent quality.** If the right file never reaches the prompt, no model fixes the diff. Localization is the step to measure first.
-- **Labels are the bottleneck.** Hand-labelled localization data is scarce. Every merged commit already says "this request → these files", so this repo tests whether that free signal is enough.
-- **Agents meet codebases that change every commit.** Retrieval has to stay fresh cheaply, and has to be checked so the incremental index never silently drifts from the truth.
-
-## Quickstart
-
-```bash
-git clone https://github.com/VijayChamakuri/commitcompass && cd commitcompass
-uv sync
-uv run commitcompass swebench --no-dense   # 300 issues, keyword + learned methods, ~{{nodense_min}} min on a laptop CPU
-```
-
-### Reproduce everything
-
-```bash
-make reproduce   # SWE-bench Lite (incl. local dense pass) + commit-history benchmark + site + README
-```
-
-| Step | Work | Time (Apple M2, 8 GB, CPU only) |
-|---|---|---|
-| Replay | {{events}} snapshots over 12 blob-less partial clones (sparse `*.py` checkout) | ~{{replay_min}} min |
-| Dense | {{dense_files}} file versions embedded with `jina-embeddings-v2-base-code` (fastembed, ONNX) | ~{{dense_min}} min |
-| Evaluate | rerankers (pooled + 12 leave-one-repo-out), bootstrap CIs, charts | ~{{eval_min}} min |
-
-There are no API keys or paid services. Data: SWE-bench Lite via the Hugging Face datasets server; repositories from GitHub.
-
-## Leaderboard
-
-{{leaderboard}}
-
-<sub>Measured rows show the mean and a 95% bootstrap CI over {{n_test}} issues. Reported rows come from {{published_source}} and were not re-run. LLM rows use paid APIs; nothing here does.</sub>
-
-![Acc@k](results/swebench_acc_at_k.png)
-
-## How it works
+## What I measured
 
 ```mermaid
 flowchart LR
-  subgraph Data
-    H[("git history: 12 repos, partial clones")] --> T["training queries: commit message → files changed, strictly before the first issue"]
-    S[("SWE-bench Lite: 300 issues")] --> Q["test queries: issue text → file that was fixed"]
-  end
-  subgraph Index["Incremental index per repo"]
-    T & Q --> R["replay in time order"]
-    R --> MK["Merkle diff: re-read only changed files"]
-    MK --> IX["keyword index: files, functions, paths"]
-    R --> HP["history signals: churn, recency, co-change"]
-  end
-  IX & HP --> F["18 signals per candidate file"]
-  F --> GBT["commit-supervised reranker (gradient-boosted trees)"]
-  F --> P["candidate pool: top 30 keyword + top 30 hybrid"] --> D["local code embeddings (Jina-Code-v2)"]
-  GBT & D --> RRF["rank fusion"] --> E["scores: Acc at k, MRR, confidence intervals"]
+  H["older commits"] --> F["{{n_features}} features"]
+  Q["issue text"] --> F
+  F --> T["boosted tree"]
+  F --> P["embedding pool"]
+  T --> R["fused rank"]
+  P --> R
 ```
 
-| Module | Responsibility |
-|---|---|
-| [`swebench.py`](src/commitcompass/swebench.py) | fetch + checksum SWE-bench Lite, parse gold files from patches, Acc@k |
-| [`swe_replay.py`](src/commitcompass/swe_replay.py) | per-repo time-ordered replay, sparse checkout, history priors, index verification |
-| [`index.py`](src/commitcompass/index.py) · [`merkle.py`](src/commitcompass/merkle.py) | mutable BM25 (file + chunk), Merkle diff, incremental update |
-| [`features.py`](src/commitcompass/features.py) | 18 named features and the non-learned retrievers |
-| [`dense.py`](src/commitcompass/dense.py) | local code embeddings over a candidate pool, cached per blob |
-| [`swe_eval.py`](src/commitcompass/swe_eval.py) | reranker training (pooled, leave-one-repo-out), label-leak guard, fusion, CIs, miss analysis |
+Older commits and the issue text are turned into the same feature row. A gradient-boosted tree scores every file, and a local embedding model reranks a short pool of files. The two ranked lists are combined below.
 
-## Results in depth
+| Method | Acc@1 | Acc@5 |
+|---|---:|---:|
+| BM25, whole file | {{bm25_acc1}}% | {{bm25_acc5}}% |
+| Hand-tuned hybrid | {{hyb_acc1}}% | {{hyb_acc5}}% |
+| Commit-supervised reranker | {{rr_acc1}}% | {{rr_acc5}}% |
+| Reranker, leave-one-repo-out | {{loro_acc1}}% | {{loro_acc5}}% |
+| Reranker fused with Jina-Code | {{fused_acc1}}% | {{fused_acc5}}% |
 
-### Does git-history supervision transfer?
+Acc@k (accuracy at k) is the share of the {{n_test}} issues whose edited file is in the top k. The reranker is a gradient-boosted tree. Leave-one-repo-out means the tree that scores a repository never trained on it.
 
-- **Commit-supervised reranker vs BM25:** Acc@1 {{d_rr_bm25_acc1}}; Acc@5 {{d_rr_bm25_acc5}}; leave-one-repo-out vs BM25 at Acc@5: {{d_loro_bm25_acc5}}.
-- **vs the hand-tuned hybrid** (same features, weights set by hand): Acc@1 {{d_rr_hyb_acc1}}; Acc@5 {{d_rr_hyb_acc5}}.
-- **Leave-one-repo-out** (never saw the scored repo's history): Acc@5 {{loro_acc5}}% vs {{rr_acc5}}% pooled.
-- **Most important features** (permutation importance): {{top_features}}.
+Jina-Code is a local code-embedding model, combined by reciprocal rank fusion (RRF). Differences below are in percentage points (pts), with a 95% confidence interval (CI).
 
-### Dense retrieval and fusion
+The highest Acc@5 I measured is {{best_label}}, at {{best_acc5}}% (95% CI {{best_acc5_ci}}). The tree alone is ahead at Acc@1: {{rr_acc1}}% against {{fused_acc1}}% fused. Its gain over BM25 at Acc@1 is {{d_rr_bm25_acc1}}.
 
-The local Jina-Code-v2 model reranks a candidate pool: the union of the top 30 files by BM25 and the top 30 by the hand-tuned hybrid, both non-learned. The pool contains the gold file for **{{pool_recall}}%** of issues, which caps any method that only reorders it.
+Fusion's gain over the tree at Acc@5 is {{d_fused_rr_acc5}}, and that interval includes zero. The long table, published rows, and per-repository numbers are in [docs/RESULTS.md](docs/RESULTS.md).
 
-- **Jina-Code-v2 alone:** Acc@5 {{jina_acc5}}% (reported full-corpus number: {{pub_jina_acc5}}%).
-- **Fused with the commit-supervised reranker (RRF):** Acc@5 {{fused_acc5}}%, which is {{d_fused_rr_acc5}} over the reranker alone and {{d_fused_dense_acc5}} over dense alone.
+## How it works
 
-### Per repository (Acc@5)
+### Labels from commits
 
-{{per_repo_table}}
+For each of the {{n_repos}} repositories I keep the last 250 commits that pass the filters in [`mine.py`](src/commitcompass/mine.py), and only commits older than that repository's first SWE-bench issue. The cap is `TRAIN_PER_REPO` in [`swe_replay.py`](src/commitcompass/swe_replay.py). The query is the commit message, with git trailers stripped and the text cut at 1,500 characters. The label is the existing `.py` files the commit modified.
 
-![Per repository](results/swebench_per_repo.png)
+Bots, version bumps, format-only subjects, messages under 5 words, and commits that touch more than 8 Python files are dropped. That leaves {{n_train}} training queries. [`check_no_label_leak`](src/commitcompass/swe_eval.py#L81-L87) raises if a training commit is not strictly older than every issue in its repository. No SWE-bench field is used to fit the tree.
 
-### Where it still fails
+### One index, updated by diff
 
-{{miss_table}}
+Each repository is a partial clone (`--filter=blob:none`) sparse-checked-out to `*.py`. Events for that repository run in time order on one index. [`merkle.diff`](src/commitcompass/merkle.py#L67-L87) skips a subtree whose hash is unchanged, and only added or modified files are tokenized again.
 
-Browse all {{n_test}} issues, with our top 10 files and the gold file highlighted, in the [live explorer](https://vijaychamakuri.github.io/commitcompass/).
+History features (how often a file changes, how long since the last edit, which files change together) absorb only commits with an earlier timestamp than the event being scored. The commit being scored stays out of its own history features.
 
-### Reproducing the baselines
+The recorded replay covers {{events}} snapshots. An incremental update re-read {{reindexed}} files and took {{incr_ms}} ms on average. On a test event at every 25th step of the replay, the index is rebuilt from scratch and compared. Those checks matched {{verified}}.
 
-Our BM25 reaches Acc@1 {{bm25_acc1}}% and Acc@5 {{bm25_acc5}}%, against {{pub_bm25_acc1}}% and {{pub_bm25_acc5}}% reported. Implementations differ in tokenisation (ours splits camelCase and snake_case and indexes path tokens), in document unit (whole file vs chunks) and in issue preprocessing. The gap is reported, not tuned away. The dense row differs further by design: it reranks a pool with file skeletons rather than retrieving chunks from the full corpus, because full-corpus chunk embedding of 45k file versions is days of laptop CPU (see [ADR-5](docs/DESIGN_DECISIONS.md)).
+### {{n_features}} features, then a tree
 
-### Efficiency
+[`features.py`](src/commitcompass/features.py) builds one row per candidate `.py` file. Sparse scores are BM25 on the whole file and on its best chunk. Name scores are path overlap, the file stem, and symbols defined in the file. The rest are history (churn, recency, co-change), test-file flags, and log file length.
 
-| | |
-|---|---|
-| Snapshots replayed | {{events}} |
-| Largest first full index build | {{first_build_max}} s (django: {{django_first}} s for ~{{django_files}} files) |
-| Incremental update | {{incr_ms}} ms per snapshot on average, re-reading {{reindexed}} files |
-| Incremental == full rebuild | {{verified}} spot-checks |
-| Feature computation | {{feat_ms}} ms per query (all candidate files) |
+Chunks follow `def` and `class` boundaries ([`chunk.py`](src/commitcompass/chunk.py)). Tokens split `camelCase` and `snake_case`, keep the whole identifier, and drop stopwords ([`textproc.py`](src/commitcompass/textproc.py)).
 
-### Secondary benchmark: commit history (flask, requests, httpx)
+The hand-tuned hybrid is a fixed weighted sum, `HYBRID_WEIGHTS` in that file. The learned model is scikit-learn's `HistGradientBoostingClassifier`, fit in [`fit_gbt`](src/commitcompass/swe_eval.py#L50-L54): 300 iterations, learning rate 0.05, at most 31 leaves, L2 penalty 1.0. Each training row is one candidate file, labeled by whether the commit modified it. Negative rows, which are most of the matrix, are left at equal weight.
 
-{{history_table}}
+One tree trains on all {{n_repos}} repositories. Leave-one-repo-out fits another tree per repository, from [`evaluate`](src/commitcompass/swe_eval.py#L96-L98):
 
-<sub>{{history_n}} test commits (the latest 30% of each repo's history). "Masked" removes words that literally name a gold file. Full report: [docs/HISTORY_BENCHMARK.md](docs/HISTORY_BENCHMARK.md).</sub>
+```python
+models = {"pooled": fit_gbt(train), "loro": {}}
+for repo in repos:
+    models["loro"][repo] = fit_gbt([r for r in train if r.repo != repo])
+```
+
+Shuffling one column and measuring the drop in average precision on the test issues puts {{top_features}} at the top. Those names are the columns in `features.py`.
+
+### Embeddings after the sparse pool
+
+Dense search uses `jinaai/jina-embeddings-v2-base-code` on the CPU (central processing unit) through fastembed. It does not scan the repository. It reranks the union of the top {{pool}} files by BM25 and the top {{pool}} by the hybrid ([`candidate_pool`](src/commitcompass/swe_run.py#L43-L48)). Each file version is embedded once, as a skeleton of the path, the class and function signatures, and the first docstring line, cut at 256 tokens ([`skeleton`](src/commitcompass/dense.py#L33-L49)).
+
+RRF adds `1/(60 + rank)` from the tree and from the embedding ([`rrf`](src/commitcompass/swe_eval.py#L57-L65)). The embedding is not an input to the tree, so training does not embed old snapshots.
+
+The pool contains the gold file on {{pool_recall}}% of issues. Jina restricted to that pool reaches Acc@5 {{jina_acc5}}%. The published full-corpus number for the same model family is Acc@5 {{pub_jina_acc5}}% ({{published_source}}). I did not re-run that corpus.
+
+## Design decisions
+
+| Choice | Why | Cost |
+|---|---|---|
+| Train on commits older than the first issue | The labels are already in git, and the leak guard enforces the time cut | A commit message is written after the edit, and it is shorter than a bug report |
+| A tree on named features, beside fixed weights | Permutation importance shows which signal moved the rank | Acc@1 versus the hybrid is {{d_rr_hyb_acc1}} |
+| Merkle updates, checked against a full rebuild | Work follows the diff: {{reindexed}} files re-read per update | The equality check is a sample, {{verified}}, not every snapshot |
+| Embed the pool, then fuse | Training needs no vector for old snapshots | A gold file the pool missed cannot be recovered. Pool recall is {{pool_recall}}% |
+| Acc@k as in the LocAgent table | Measured rows and reported rows use one definition | My BM25 is Acc@1 {{bm25_acc1}}% and Acc@5 {{bm25_acc5}}%, against {{pub_bm25_acc1}}% and {{pub_bm25_acc5}}% reported |
+
+## Evaluation
+
+**Metric.** Acc@k is 1 only when every gold file is inside the top k ([`acc_at`](src/commitcompass/swebench.py#L139-L141)). Gold files are the `.py` paths the reference patch modifies. A file the patch creates is excluded, because it is absent from the base commit.
+
+In [`results/swebench_lite_per_instance.jsonl`](results/swebench_lite_per_instance.jsonl) every one of the {{n_test}} issues has a single gold file. Intervals use 2,000 bootstrap resamples ([`bootstrap_ci`](src/commitcompass/metrics.py#L66-L74)), paired across the same issues when two methods are compared.
+
+**Leakage and the index.** The leak guard is an assertion inside the evaluator: it raises when a training commit is not strictly older than the issues in that repository. The incremental index is compared with a from-scratch rebuild on the sampled snapshots above, and the recorded run matched {{verified}}. On the commit-history benchmark, features are computed before that commit is absorbed into the priors ([`replay_repo`](src/commitcompass/evaluate.py#L62-L72)).
+
+**Tests.** The offline suite is 24 tests.
+
+- [`tests/test_commitbench.py`](tests/test_commitbench.py) (18) builds a synthetic git repo and checks mining filters, tokenization, chunking, the Merkle diff, incremental-index equality, the metric math, the temporal split, and that history priors ignore the query commit and later commits.
+- [`tests/test_swebench.py`](tests/test_swebench.py) (5) checks patch parsing, Acc@k, rank fusion, the leak guard, and a history parser that survives control characters inside a commit message.
+- [`tests/test_readme.py`](tests/test_readme.py) (1) fails if this page or [docs/RESULTS.md](docs/RESULTS.md) disagrees with a fresh render of `results/`.
+
+`make test` runs ruff, the format check, mypy on `src/`, and these tests. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the same checks on every push, plus a smoke replay of the 3 flask issues (30 training commits, no embeddings).
+
+**Second benchmark.** Commit messages from flask, requests, and httpx, earliest 70% for training and latest 30% for test ({{history_n}} test commits). Recall@10, the share of edited files that land in the top 10, is {{hist_gbt_r10}} for the tree and {{hist_bm25_r10}} for BM25. The masked condition and the per-repo tables are in [docs/HISTORY_BENCHMARK.md](docs/HISTORY_BENCHMARK.md).
 
 ## Limitations
 
-- **Retrieval is not agent success.** No patches are generated or tested here.
-- **Twelve Python repositories.** SWE-bench Lite also has single-file gold, so multi-file localization is untested.
-- **Training queries are commit messages, not issues.** They're written after the change and are terser. Leave-one-repo-out quantifies the transfer cost.
-- **Dense is pool-limited.** It can't recover a gold file the sparse pool missed.
+The output is a ranked list of files. Producing a patch, and running the target project's tests, are outside this repo.
 
-## Roadmap
+The {{n_test}} issues come from {{n_repos}} Python repositories, and each gold set is one file. Multi-file edits and other languages are unmeasured.
 
-1. Hard-negative fine-tuning of a small code-embedding model on the same commit-history labels.
-2. Downstream agent success: retrieve top-k at the base commit, let an agent edit, run the SWE-bench tests.
-3. SWE-bench Verified and multi-file instances; non-Python repositories.
-4. Query-time latency budget: early-exit reranking for interactive use.
+Training text is a commit message, not an issue. Leave-one-repo-out is the transfer number: Acc@1 {{loro_acc1}}% and Acc@5 {{loro_acc5}}%, against {{rr_acc1}}% and {{rr_acc5}}% when the repository's own history is included.
 
-## Project structure
+The embedding step cannot see past the pool. Pool recall is {{pool_recall}}%, so the other issues are misses for every method that only reorders that pool.
 
+## What I'd do next
+
+1. Fine-tune a small code-embedding model on the same commit labels, using files the tree ranked above the gold file as hard negatives.
+2. Hand the top files to an agent at `base_commit`, let it edit, and run the SWE-bench tests. That pass rate is not in this repo.
+3. Repeat the file metric on SWE-bench Verified, and on patches that edit more than one file.
+4. Put a latency budget on the tree so the rank can run while someone is typing.
+
+## Run it
+
+```bash
+git clone https://github.com/VijayChamakuri/commitcompass
+cd commitcompass
+uv sync --all-groups
+make test
 ```
-src/commitcompass/   swebench, swe_replay, swe_eval, dense, index, merkle, features, history, mine, site, readme
-results/           every number in this README (JSON, per-instance JSONL, charts)
-docs/              METHODOLOGY · DATA_CARD · DESIGN_DECISIONS · HISTORY_BENCHMARK · README template
-site/              GitHub Pages: leaderboard + per-instance explorer
-tests/             offline tests on a synthetic git repo, metric/parsing/leak guards, README drift
+
+`make test` needs the dev dependency group, which `uv sync --all-groups` installs. Python 3.12 is the version pinned in [`.python-version`](.python-version).
+
+The SWE-bench command downloads the dataset from the Hugging Face datasets server and clones the {{n_repos}} repositories from GitHub. No key is required. `--no-dense` skips the embedding model:
+
+```bash
+uv run commitcompass swebench --no-dense
 ```
 
-## Citation and licence
+Wall times stored in [`results/swebench_lite.json`](results/swebench_lite.json) put that command at about {{nodense_min}} minutes. Replay is about {{replay_min}} minutes across {{events}} snapshots, and evaluation is about {{eval_min}} minutes. Those two figures are rounded separately.
 
-Code is MIT-licensed ([LICENSE](LICENSE)); cite via [CITATION.cff](CITATION.cff). SWE-bench is MIT-licensed; each evaluated repository keeps its own licence. Reported baseline numbers: {{published_source}}.
+The embedding pass is about {{dense_min}} minutes for {{dense_files}} file skeletons.
+
+```bash
+make reproduce
+```
+
+runs SWE-bench with embeddings, the commit-history benchmark, the site under [`site/`](site), and a fresh copy of this page. The [`Dockerfile`](Dockerfile) runs that same target. Per-issue top-10 lists are on the [explorer](https://vijaychamakuri.github.io/commitcompass/).
+
+## Repo map
+
+- [`swe_eval.py`](src/commitcompass/swe_eval.py) fits the trees, fuses ranks, and writes the metrics.
+- [`swe_replay.py`](src/commitcompass/swe_replay.py) replays one repository in time order.
+- [`features.py`](src/commitcompass/features.py) builds the {{n_features}} features and the fixed-weight scorers.
+- [`index.py`](src/commitcompass/index.py) and [`merkle.py`](src/commitcompass/merkle.py) keep BM25 up to date as files change.
+- [`dense.py`](src/commitcompass/dense.py) embeds the candidate pool on CPU.
+- [`swebench.py`](src/commitcompass/swebench.py) loads SWE-bench Lite and defines Acc@k.
+- [`mine.py`](src/commitcompass/mine.py) turns commits into training queries.
+- [`results/`](results) holds the summary files, the per-issue records, and the charts this page is filled from.
+- [docs/RESULTS.md](docs/RESULTS.md) holds the long tables. [METHODOLOGY.md](docs/METHODOLOGY.md), [DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md), [DATA_CARD.md](docs/DATA_CARD.md), and [HISTORY_BENCHMARK.md](docs/HISTORY_BENCHMARK.md) are next to it.
+- [`tests/`](tests) is the offline suite. [`site/`](site) is the GitHub Pages explorer.
+
+This page is generated. Edit [docs/README.template.md](docs/README.template.md) and [docs/RESULTS.template.md](docs/RESULTS.template.md), then run `uv run commitcompass readme`.
+
+## License
+
+The code is MIT ([LICENSE](LICENSE)). Citation fields are in [CITATION.cff](CITATION.cff). SWE-bench is MIT, and each evaluated repository keeps its own license. Reported numbers are copied from {{published_source}}.
