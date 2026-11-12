@@ -33,7 +33,7 @@ LLM (large language model) rows in the paper call a paid model. The rows measure
 
 ![Horizontal bars of Acc@5. Blue bars were measured in this repo and include a 95% interval. Grey bars are reported retrieval numbers. Orange bars are reported LLM pipelines and agents.](../results/swebench_leaderboard.png)
 
-The chart legend says the measured bars used no API (application programming interface). That means no paid model service. Fetching the dataset and cloning the repositories does use the network.
+Blue bars were measured here and include a 95% confidence interval. They do not use a paid model. Fetching the dataset and cloning the repositories does use the network.
 
 ## Paired comparisons
 

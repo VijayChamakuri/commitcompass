@@ -110,6 +110,8 @@ def values() -> dict[str, str]:
     ]:
         if key in d:
             v[name] = delta(d[key])
+            if key == "commit_reranker - bm25_file : acc@1":
+                v["d_rr_bm25_acc1_pts"] = f"{100 * d[key]['mean']:.1f}"
     v["pool_recall"] = f"{100 * res.get('pool_recall', 0):.1f}"
     pr = res["per_repo_acc@5"]
     show = [m for m in ("bm25_file", "commit_reranker", "dense_jina_code", "rrf_reranker_dense") if m in agg]

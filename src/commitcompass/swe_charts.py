@@ -78,7 +78,7 @@ def leaderboard(res: dict, out: Path) -> None:
 
     ax.legend(
         handles=[
-            Patch(color=OURS, label="Measured here (laptop CPU, no API), with 95% CI"),
+            Patch(color=OURS, label="Measured here (no paid model), with 95% CI"),
             Patch(color=PUB, label="Reported: retrieval"),
             Patch(color=LLM, label="Reported: LLM pipelines and agents"),
         ],

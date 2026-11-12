@@ -50,19 +50,22 @@ Commit message → modified `.py` files for flask, requests and httpx (non-merge
 
 **Commit-supervised reranker** (the contribution):
 - Gradient-boosted trees over 18 named features (sparse scores, path, symbol, history priors, test-file flags, file size).
-- **Training labels are commit messages and the files those commits modified**, taken from each repository's history strictly before the creation date of its first SWE-bench issue. `check_no_label_leak` asserts this, and no SWE-bench label is ever used for training.
+- The model is scikit-learn's `HistGradientBoostingClassifier`, fit in `fit_gbt`: 300 iterations, learning rate 0.05, at most 31 leaves, L2 penalty 1.0. Each row is one candidate file. Negative rows are left at equal weight.
+- **Training labels are commit messages and the files those commits modified**, taken from each repository's history strictly before the creation date of its first SWE-bench issue. `clean_message` strips git trailers and cuts the text at 1,500 characters. `classify` drops bots, version bumps, format-only subjects, messages under 5 words, and commits that touch more than 8 Python files. `check_no_label_leak` asserts the time cut, and no SWE-bench label is ever used for training.
+- **Tokenizer.** `tokenize` in `textproc.py` splits camelCase and snake_case, keeps the whole identifier, applies a light plural stem, and drops stopwords. The same function is used on queries and on source.
 - **Pooled:** trained on all repositories' commit queries.
 - **Leave-one-repo-out:** the model scoring repository R never saw R's commits. This tests transfer to unseen codebases.
+- **Which feature mattered.** Permutation importance uses average precision on the test issues, 3 repeats, seed 0. The ranked column names are rendered in [RESULTS.md](RESULTS.md).
 
-**Fusion:** reciprocal rank fusion (k = 60) of the reranker or BM25 with the dense scores.
+**Fusion:** reciprocal rank fusion (k = 60) of the reranker or BM25 with the dense scores. Each list contributes `1/(60 + rank)`.
 
 ## 5. Comparability with reported numbers
 
 The reported rows are copied, not re-run. Known differences:
 
 - Their retrieval baselines may chunk, truncate and preprocess issues differently. Our BM25 and Jina-Code rows are our own implementations of the same model families, so gaps against their rows are shown, not hidden.
-- Their LLM rows use paid APIs. Nothing here calls an API.
-- Scoring runs on CPU. Wall times are in `results/swebench_lite.json`. That file does not name the machine.
+- Their large-language-model rows call a paid model. Scoring here does not. Fetching the dataset and cloning the repositories does use the network.
+- Scoring runs locally. Wall times are in `results/swebench_lite.json`. That file does not name the machine.
 
 ## 6. What is not claimed
 

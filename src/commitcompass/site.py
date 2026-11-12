@@ -143,8 +143,8 @@ writes afterwards will fix the bug. Retrievers for this step are usually trained
 I wanted to see how far you get with supervision every repository already has: its git history. Each commit pairs a description
 of a change with the files it touched.</p>
 <p>CommitCompass trains a small reranker on {{n_train}} of those commit-message and changed-file pairs, all from before each
-repository's first benchmark issue, and tests it on all {{n_test}} issues in SWE-bench Lite. It never sees a SWE-bench label, and
-everything runs on a laptop CPU.</p>
+repository's first benchmark issue, and tests it on all {{n_test}} issues in SWE-bench Lite. It never sees a SWE-bench label.
+Scoring runs locally, with no paid model service.</p>
 
 <h2>What I found</h2>
 <ol>
@@ -165,7 +165,7 @@ re-read {{reindexed}} files per update on average and matched a full rebuild in 
 <h2>How it compares</h2>
 <p>Acc@k counts an issue as found if the file that was actually changed is among the top k suggestions. Measured rows show a 95%
 bootstrap interval over the {{n_test}} issues. Reported rows are copied from {{published_source}} and were not re-run here; the LLM
-rows use paid APIs and nothing measured here does. My BM25 lands close to the published one ({{bm25_acc5}}% against
+rows use a paid model and nothing measured here does. My BM25 lands close to the published one ({{bm25_acc5}}% against
 {{pub_bm25_acc5}}% at Acc@5), which is a useful check that the setup matches.</p>
 <div class="tbl wide"><p class=cap><b>Table 1.</b> File-level localization on SWE-bench Lite, {{n_test}} issues.</p>{{leaderboard}}</div>
 <figure class=narrow><img src="swebench_leaderboard.png" alt="Horizontal bar chart of Acc@5 for measured and reported methods. Measured methods sit between BM25 and the LLM agents.">

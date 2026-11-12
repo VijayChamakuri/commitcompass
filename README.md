@@ -27,39 +27,23 @@ Older commits and the issue text are turned into the same feature row. A gradien
 | Reranker, leave-one-repo-out | 46.0% | 71.0% |
 | Reranker fused with Jina-Code | 46.0% | 74.7% |
 
-Acc@k (accuracy at k) is the share of the 300 issues whose edited file is in the top k. The reranker is a gradient-boosted tree. Leave-one-repo-out means the tree that scores a repository never trained on it.
+Acc@k (accuracy at k) is the share of the 300 issues whose edited file is in the top k. The reranker is a gradient-boosted tree trained on commits. Leave-one-repo-out means the tree that scores a repository never trained on that repository.
 
-Jina-Code is a local code-embedding model, combined by reciprocal rank fusion (RRF). Differences below are in percentage points (pts), with a 95% confidence interval (CI).
-
-The highest Acc@5 I measured is Commit reranker ⊕ Jina-Code (RRF), at 74.7% (95% CI 69.7–79.3). The tree alone is ahead at Acc@1: 47.7% against 46.0% fused. Its gain over BM25 at Acc@1 is +10.3 pts (95% CI +5.0 to +15.7).
-
-Fusion's gain over the tree at Acc@5 is +3.0 pts (95% CI -0.7 to +7.0), and that interval includes zero. The long table, published rows, and per-repository numbers are in [docs/RESULTS.md](docs/RESULTS.md).
+The commit-trained tree beats BM25 by 10.3 points at Acc@1. Fusing it with a local code-embedding model helps a little at Acc@5, and that gain's interval includes zero. The intervals, the published rows, and the per-repository numbers are in [docs/RESULTS.md](docs/RESULTS.md).
 
 ## How it works
 
 ### Labels from commits
 
-For each of the 12 repositories I keep the last 250 commits that pass the filters in [`mine.py`](src/commitcompass/mine.py), and only commits older than that repository's first SWE-bench issue. The cap is `TRAIN_PER_REPO` in [`swe_replay.py`](src/commitcompass/swe_replay.py). The query is the commit message, with git trailers stripped and the text cut at 1,500 characters. The label is the existing `.py` files the commit modified.
-
-Bots, version bumps, format-only subjects, messages under 5 words, and commits that touch more than 8 Python files are dropped. That leaves 3,000 training queries. [`check_no_label_leak`](src/commitcompass/swe_eval.py#L81-L87) raises if a training commit is not strictly older than every issue in its repository. No SWE-bench field is used to fit the tree.
+For each of the 12 repositories, training rows are the last 250 qualifying commits from before that repository's first SWE-bench issue ([`mine.py`](src/commitcompass/mine.py), [`swe_replay.py`](src/commitcompass/swe_replay.py)). The query is the commit message, and the label is the Python files that commit changed. Bots, version bumps, and format-only edits are dropped, which leaves 3,000 queries. [`check_no_label_leak`](src/commitcompass/swe_eval.py#L81-L87) raises if any training commit is not strictly older than the issues in its repository, and no SWE-bench field is used to fit the tree.
 
 ### One index, updated by diff
 
-Each repository is a partial clone (`--filter=blob:none`) sparse-checked-out to `*.py`. Events for that repository run in time order on one index. [`merkle.diff`](src/commitcompass/merkle.py#L67-L87) skips a subtree whose hash is unchanged, and only added or modified files are tokenized again.
-
-History features (how often a file changes, how long since the last edit, which files change together) absorb only commits with an earlier timestamp than the event being scored. The commit being scored stays out of its own history features.
-
-The recorded replay covers 3,300 snapshots. An incremental update re-read 24.2 files and took 491 ms on average. On a test event at every 25th step of the replay, the index is rebuilt from scratch and compared. Those checks matched 17/17.
+Each repository is replayed in time on one index, from a partial clone that checks out only Python files ([`swe_replay.py`](src/commitcompass/swe_replay.py)). [`merkle.diff`](src/commitcompass/merkle.py#L67-L87) skips a directory whose hash is unchanged, so only added or modified files are read again, and history features use only earlier commits. Across 3,300 snapshots an update re-read 24.2 files and took 491 milliseconds on average. Spot-checks against a full rebuild matched 17/17.
 
 ### 18 features, then a tree
 
-[`features.py`](src/commitcompass/features.py) builds one row per candidate `.py` file. Sparse scores are BM25 on the whole file and on its best chunk. Name scores are path overlap, the file stem, and symbols defined in the file. The rest are history (churn, recency, co-change), test-file flags, and log file length.
-
-Chunks follow `def` and `class` boundaries ([`chunk.py`](src/commitcompass/chunk.py)). Tokens split `camelCase` and `snake_case`, keep the whole identifier, and drop stopwords ([`textproc.py`](src/commitcompass/textproc.py)).
-
-The hand-tuned hybrid is a fixed weighted sum, `HYBRID_WEIGHTS` in that file. The learned model is scikit-learn's `HistGradientBoostingClassifier`, fit in [`fit_gbt`](src/commitcompass/swe_eval.py#L50-L54): 300 iterations, learning rate 0.05, at most 31 leaves, L2 penalty 1.0. Each training row is one candidate file, labeled by whether the commit modified it. Negative rows, which are most of the matrix, are left at equal weight.
-
-One tree trains on all 12 repositories. Leave-one-repo-out fits another tree per repository, from [`evaluate`](src/commitcompass/swe_eval.py#L96-L98):
+[`features.py`](src/commitcompass/features.py) scores every candidate Python file with keyword overlap, the file's path and symbol names, and how recently and how often it changed. A fixed weighted sum of those signals is the hand-tuned hybrid. The learned model is a gradient-boosted tree ([`fit_gbt`](src/commitcompass/swe_eval.py#L50-L54)): one tree sees all 12 repositories, and leave-one-repo-out fits a separate tree that has never seen the repository it scores ([`evaluate`](src/commitcompass/swe_eval.py#L96-L98)).
 
 ```python
 models = {"pooled": fit_gbt(train), "loro": {}}
@@ -67,15 +51,9 @@ for repo in repos:
     models["loro"][repo] = fit_gbt([r for r in train if r.repo != repo])
 ```
 
-Shuffling one column and measuring the drop in average precision on the test issues puts `bm25_file_rrank`, `bm25_chunk_norm`, `recency_log_days`, `bm25_chunk`, `symbol_exact`, `path_frac` at the top. Those names are the columns in `features.py`.
-
 ### Embeddings after the sparse pool
 
-Dense search uses `jinaai/jina-embeddings-v2-base-code` on the CPU (central processing unit) through fastembed. It does not scan the repository. It reranks the union of the top 30 files by BM25 and the top 30 by the hybrid ([`candidate_pool`](src/commitcompass/swe_run.py#L43-L48)). Each file version is embedded once, as a skeleton of the path, the class and function signatures, and the first docstring line, cut at 256 tokens ([`skeleton`](src/commitcompass/dense.py#L33-L49)).
-
-RRF adds `1/(60 + rank)` from the tree and from the embedding ([`rrf`](src/commitcompass/swe_eval.py#L57-L65)). The embedding is not an input to the tree, so training does not embed old snapshots.
-
-The pool contains the gold file on 91.3% of issues. Jina restricted to that pool reaches Acc@5 65.3%. The published full-corpus number for the same model family is Acc@5 80.3% (LocAgent: Graph-Guided LLM Agents for Code Localization (arXiv:2503.09089), Table 4). I did not re-run that corpus.
+A local copy of `jinaai/jina-embeddings-v2-base-code` reranks a short pool, the top 30 files by keyword search together with the top 30 by the hybrid ([`dense.py`](src/commitcompass/dense.py), [`candidate_pool`](src/commitcompass/swe_run.py#L43-L48)). Each pooled file is embedded once, as a short skeleton of its path and signatures, and reciprocal rank fusion combines that score with the tree ([`rrf`](src/commitcompass/swe_eval.py#L57-L65)). The pool holds the gold file on 91.3% of issues, so a file outside it cannot be recovered. On that pool the model reaches Acc@5 65.3%, against a published full-corpus figure of 80.3% for the same model family.
 
 ## Design decisions
 
@@ -155,7 +133,7 @@ runs SWE-bench with embeddings, the commit-history benchmark, the site under [`s
 - [`swe_replay.py`](src/commitcompass/swe_replay.py) replays one repository in time order.
 - [`features.py`](src/commitcompass/features.py) builds the 18 features and the fixed-weight scorers.
 - [`index.py`](src/commitcompass/index.py) and [`merkle.py`](src/commitcompass/merkle.py) keep BM25 up to date as files change.
-- [`dense.py`](src/commitcompass/dense.py) embeds the candidate pool on CPU.
+- [`dense.py`](src/commitcompass/dense.py) embeds the candidate pool locally.
 - [`swebench.py`](src/commitcompass/swebench.py) loads SWE-bench Lite and defines Acc@k.
 - [`mine.py`](src/commitcompass/mine.py) turns commits into training queries.
 - [`results/`](results) holds the summary files, the per-issue records, and the charts this page is filled from.
